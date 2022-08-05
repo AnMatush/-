@@ -1,0 +1,103 @@
+#подключение библиотеки numpy
+import numpy as np
+#импорт текстовых данных из файлов
+import1 = np.loadtxt('D:\\python_scripts\\test_out.txt') 
+import2 = np.loadtxt('D:\\python_scripts\\test_out2.txt')
+#число элементов в выводе 1 файла
+n1=10
+#число элементов в выводе 2 файла
+n2=14
+#общее число элементоа
+n3=n1+n2
+#преобразвание в 3д массив 1 файла
+preobr1=import1.reshape(-1,n1,7)
+#преобразвание в 3д массив 2 файла
+preobr2=import2.reshape(-1,n2,7)
+#пИтоговый 3д массив число шагов x число элементов x число параметров
+data=np.hstack([preobr1,preobr2])
+#число шагов в трёхменом массиве
+k=data.shape[0]
+
+###################################
+##обработка##
+###################################
+
+#находим максимумы и минимумы напряжений
+
+#########################################
+#создание массива макимальных напряжений и деформаций
+#########################################
+i=2 #начало циклов максимумов
+j=0 #инициализация счётчика числа элементов
+l=0 #инициализация счётчика числа максимумов
+s=63 #число шагов пока поворяется цикличность циклов
+s2=s//4 #поиск числа максимумов
+max_stress = np.empty((s2+3,n3)) #инициализация массива максимальных напряжений
+max_strain = np.empty((s2+3,n3)) #инициализация массива максимальных деформаций
+while i<s:
+    for j in range(n3):
+        maximum_stress=max(data[i,j,3],data[i+1,j,3])
+        max_stress[l,j] =  maximum_stress
+        if maximum_stress==data[i,j,3]:
+            max_strain[l,j]=data[i,j,6]
+        else:
+            max_strain[l,j]=data[i+1,j,6]
+    l=l+1    
+    i=i+4
+##############################    
+
+for j in range (n3):
+    maximum_stress=max(data[67,j,3],data[68,j,3])
+    max_stress[l,j] =  maximum_stress
+    if maximum_stress==data[67,j,3]:
+        max_strain[l,j]=data[67,j,6]
+    else:
+        max_strain[l,j]=data[68,j,6]
+l=l+1
+
+for j in range (n3):
+    maximum_stress=max(data[71,j,3],data[72,j,3],data[73,j,3])
+    max_stress[l,j] =  maximum_stress
+    if maximum_stress==data[71,j,3]:
+        max_strain[l,j]=data[71,j,6]
+    elif maximum_stress==data[72,j,3]:
+        max_strain[l,j]=data[72,j,6]
+    else:
+        max_strain[l,j]=data[73,j,6]
+###########################################
+#создание массива минимальных напряжений
+############################################
+i=0 #начало циклов максимумов
+j=0 #инициализация счётчика числа элементов
+l=0 #инициализация счётчика числа максимумов
+min_stress = np.empty((s2+3,n3)) #инициализация массива максимальных напряжений
+while i<s:
+    for j in range(n3):
+        minimum_stress=min(data[i,j,3],data[i+1,j,3],data[i+4,j,3],data[i+5,j,3])
+        min_stress[l,j] =  minimum_stress
+    l=l+1    
+    i=i+4
+##############################    
+
+for j in range (n3):
+    minimum_stress=min(data[67,j,3],data[68,j,3])
+    min_stress[l,j] =  minimum_stress
+l=l+1
+
+for j in range (n3):
+    minimum_stress=min(data[71,j,3],data[72,j,3],data[73,j,3])
+    min_stress[l,j] =  minimum_stress
+    
+
+
+
+
+
+
+
+#################################
+#Создание массива размаха напряжений
+#####################################
+
+delt_stress = np.empty((s2+3,n3)) #инициализация массива максимальных напряжений
+delt_stress = max_stress-min_stress

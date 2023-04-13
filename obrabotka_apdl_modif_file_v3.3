@@ -1,0 +1,681 @@
+
+# общее число элементоа
+elements_number = 4
+points_number = 92
+elements_number = int(elements_number)
+points_number = int(points_number)
+# Число точек для записи в excel
+index_out = 1
+
+# подключение библиотеки numpy
+# подключение библиотеки работы с Excel
+# подключение библиотеки sys
+# подключение библиотеки scipy модуля для решения мэнсона
+from scipy.optimize import fsolve
+import sys
+import openpyxl
+import numpy as np
+
+# прописываем путь где лежат подпрограммы
+sys.path.append('D:\\python_scripts')
+# импорт моей библиотеки интерполяции свойств материала
+import Materials as mat
+
+# импорт рассчётных текстовых данных из файлов
+pred_import1 = np.loadtxt('D:\\TVD_data\\l1_1_741_4.txt')
+pred_import2 = np.loadtxt('D:\TVD_data\\l1_2_741_4.txt')
+pred_import3 = np.loadtxt('D:\\TVD_data\\l1_3_741_4.txt')
+
+# объединение 2 файлов в 1
+import_file = np.concatenate((pred_import1,pred_import2,pred_import3), axis = 1)
+
+# преобразвание в 3д массив 1 файла
+data = np.reshape((import_file), (points_number,elements_number,43), order='F')
+# число шагов в трёхменом массиве
+k = data.shape[0]
+
+###################################
+##обработка##
+###################################
+
+# находим максимумы и минимумы напряжений
+
+###################################
+##создание массива максимумов точек максимумов ОТПЦе##
+###################################
+max_points_cycle = np.loadtxt('D:\\python_scripts\\Max_points_92.txt')
+max_points_cycle = max_points_cycle.astype('int16')
+###################################
+##создание массива минимумов точек минимумов в ОТПЦ##
+###################################
+min_points_cycle = np.loadtxt('D:\\python_scripts\\Min_points_92.txt')
+min_points_cycle = min_points_cycle.astype('int16')
+
+#########################################
+# создание массива макимальных напряжений и деформаций плюс соответствующие им температуры
+#########################################
+i = 0  # начало циклов максимумов
+j = 0  # инициализация счётчика числа элементов
+l = 0  # инициализация счётчика числа максимумов
+s = 34  # число шагов пока поворяется цикличность циклов
+s2 = s//2+1  # общее число максимумов
+# инициализация массива максимальных напряжений
+max_stress = np.empty((s2, elements_number))
+# инициализация массива максимальных деформаций
+max_strain = np.empty((s2, elements_number))
+# инициализация массива максимальных температур
+max_temp = np.empty((s2, elements_number))
+# инициализация массива индексов элементов напряжений
+index_elemet = np.empty((s2, elements_number))
+# инициализация массива индексов температур
+max_temp = np.empty((s2, elements_number))
+
+while i < s:
+    for j in range(elements_number):
+        maximum_stress = max(data[max_points_cycle[i], j, 36], data[max_points_cycle[i+1], j, 36])
+        max_stress[l, j] = maximum_stress
+        max_temp[l, j] = max(data[max_points_cycle[i], j, 2], data[max_points_cycle[i+1], j, 2])
+        if maximum_stress == data[max_points_cycle[i], j, 36]:
+            max_strain[l, j] = data[max_points_cycle[i], j, 26]
+            index_elemet[l, j] = max_points_cycle[i]
+        else:
+            max_strain[l, j] = data[max_points_cycle[i+1], j, 26]
+            index_elemet[l, j] = max_points_cycle[i+1]
+    l = l+1
+    i = i+2  
+
+for j in range(elements_number):
+    maximum_stress = max(data[87, j, 3], data[88-1, j, 36], data[89-1, j, 36])
+    max_stress[l, j] = maximum_stress
+    max_temp[l, j] = max(data[87-1, j, 2], data[88-1, j, 2], data[89-1, j, 2])
+    if maximum_stress == data[87-1, j, 36]:
+        max_strain[l, j] = data[87-1, j, 26]
+        index_elemet[l, j] = 87-1
+    elif maximum_stress == data[88-1, j, 36]:
+        max_strain[l, j] = data[88-1, j, 26]
+        index_elemet[l, j] = 88-1
+    else:
+        max_strain[l, j] = data[89-1, j, 26]
+        index_elemet[l, j] = 89-1
+
+
+###########################################
+# создание массива минимальных напряжений и деформаций
+############################################
+i = 0  # начало циклов максимумов
+j = 0  # инициализация счётчика числа элементов
+l = 0  # инициализация счётчика числа максимумов
+# инициализация массива минимальных напряжений
+min_stress = np.empty((s2+1, elements_number))
+# инициализация массива минимальных деформаций
+min_strain = np.empty((s2+1, elements_number))
+# инициализация массива индексов элементов напряжений
+index_elemet2 = np.empty((s2+1, elements_number))
+# инициализация массива минимальных температур
+max_temp2 = np.empty((s2+1, elements_number))
+while i < s-2:
+    for j in range(elements_number):
+        minimum_stress = min(data[min_points_cycle[i], j, 36], data[min_points_cycle[i+1], j, 36])
+        min_stress[l, j] = minimum_stress
+        max_temp2[l, j] = max(data[min_points_cycle[i], j, 2], data[min_points_cycle[i+1], j, 2])
+        if minimum_stress == data[min_points_cycle[i], j, 36]:
+            min_strain[l, j] = data[min_points_cycle[i], j, 26]
+            index_elemet2[l, j] = min_points_cycle[i]
+        elif minimum_stress == data[min_points_cycle[i+1], j, 36]:
+            min_strain[l, j] = data[min_points_cycle[i+1], j, 26]
+            index_elemet2[l, j] = min_points_cycle[i+1]
+        elif minimum_stress == data[min_points_cycle[i+2], j, 36]:
+            min_strain[l, j] = data[min_points_cycle[i+2], j, 26]
+            index_elemet2[l, j] = min_points_cycle[i+2]
+        else:
+            min_strain[l, j] = data[min_points_cycle[i+3], j, 26]
+            index_elemet2[l, j] = min_points_cycle[i+3]
+    l = l+1
+    i = i+2
+##############################
+for j in range(elements_number):
+    minimum_stress = min(data[76-1, j, 36], data[77-1, j, 36], data[78-1, j, 36])
+    min_stress[l, j] = minimum_stress
+    max_temp2[l, j] = max(data[76-1, j, 2], data[77-1, j, 2], data[78-1, j, 2])
+    if minimum_stress == data[76-1, j, 36]:
+        min_strain[l, j] = data[76-1, j, 26]
+        index_elemet2[l, j] = 76-1
+    elif minimum_stress == data[77-1, j, 36]:
+        min_strain[l, j] = data[77-1, j, 26]
+        index_elemet2[l, j] = 77-1
+    else:
+        min_strain[l, j] = data[78-1, j, 26]
+        index_elemet2[l, j] = 78-1
+l = l+1
+
+for j in range(elements_number):
+    minimum_stress = min(data[85-1, j, 36], data[86-1, j, 36])
+    min_stress[l, j] = minimum_stress
+    max_temp2[l, j] = max(data[85-1, j, 2], data[86-1, j, 2])
+    if minimum_stress == data[85-1, j, 36]:
+        min_strain[l, j] = data[85-1, j, 26]
+        index_elemet2[l, j] = 85-1
+    else:
+        min_strain[l, j] = data[85-1, j, 26]
+        index_elemet2[l, j] = 85-1
+l = l+1
+
+for j in range(elements_number):
+    minimum_stress = min(data[90-1, j, 35], data[91-1, j, 36], data[92-1, j, 36])
+    min_stress[l, j] = minimum_stress
+    max_temp2[l, j] = max(data[90-1, j, 2], data[91-1, j, 2], data[92-1, j, 2])
+    if minimum_stress == data[90-1, j, 36]:
+        min_strain[l, j] = data[90-1, j, 26]
+        index_elemet2[l, j] = 90-1
+    elif minimum_stress == data[91-1, j, 36]:
+        min_strain[l, j] = data[91-1, j, 26]
+        index_elemet2[l, j] = 91-1
+    else:
+        min_strain[l, j] = data[92-1, j, 26]
+        index_elemet2[l, j] = 92-1
+        
+        
+#################################
+# Определение циклов
+#####################################
+# максимальное напряжение в расчёте и его индексы
+max_stress_cykle = np.amax(max_stress)  # значение максимального напряжения
+# индексы расположения максимального напряжения в массиве
+ind = np.unravel_index(np.argmax(max_stress), max_stress.shape)
+
+
+#Списки циклов, первое число - номер строки цикла максимумов  из max_stress, 
+#второе номер строки цикла 1 мимнимум из min_stress
+#второе номер строки цикла 2 мимнимум из min_stress
+
+#N1m
+N1m = [ind[0], 18, 0]  # 0
+#N2m
+N2m_1 = [4, 7, 8]  # 1
+N2m_2 = [8, 8, 9]  # 2
+N2m_3 = [10, 10, 11]  # 3
+N2m_4 = [11, 11, 12]  # 4
+N2m_5 = [12, 12, 13]  # 5
+N2m_6 = [16, 16, 17]  # 6
+N2m_7 = [3, 3, 4]  # 7
+# N3m
+N3m_1 = [6, 6, 7]  # 8
+N3m_2 = [5, 5, 6]  # 9
+N3m_3 = [4, 5, 0]  # 10
+N3m_4 = [7, 7, 0]  # 11
+#
+N2y = [9, 9, 10]  # 12
+#N4
+N4_1 = [0, 0, 1]  # 13
+N4_2 = [1, 1, 2]  # 14
+N4_3 = [2, 2, 3]  # 15
+N4_4 = [13, 13, 14]  # 16
+N4_5 = [14, 14, 15]  # 17
+N4_6 = [15, 15, 16]  # 18
+N4_7 = [17, 17, 18]  # 19
+#
+N1to = [3, 0, 0]  # 20
+#
+N2to = [3, 3, 4]  # 21
+
+
+# Сборный массив циклов
+N_it = [N1m, N2m_1, N2m_2, N2m_3, N2m_4, N2m_5, N2m_6, N2m_7, N3m_1, N3m_2, N3m_3,
+        N3m_4, N2y, N4_1, N4_2, N4_3, N4_4, N4_5, N4_6, N4_7, N1to, N2to]
+# a = len(N_it) #длина массива циклов
+flight_cycle_number = len(N_it)  # длина массива циклов
+
+
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+# Функция расчёта минимальной и максимальной позиции элемента в массиве data
+def ramax(index, index2, smax, smin, Cykle):
+    # получение 3 номеров столбцов максимальных напряжений из cnhjrb wbrkf
+    num_max_value = np.argsort(smax[Cykle[0], :])[-3:]
+    # получение номера строки минимума элементов и массива min stress
+    # инициализация массива минимальных индексов минимумов
+    num_min_value = np.empty(3, dtype=np.int16)
+    i = 0
+
+    for i in range(3):        
+        if Cykle[2] == 0:
+            num_min_value[i] = np.int16(Cykle[1])
+        elif smin[Cykle[1], num_max_value[i]]-smin[Cykle[2], num_max_value[i]] > 0:
+            num_min_value[i] = np.int16(Cykle[2])
+        else:
+            num_min_value[i] = np.int16(Cykle[1])
+   
+# получение номеров рядов исходного 3д массива для выделения номера шага
+    data_i1m = np.int16(index[Cykle[0], num_max_value[2]])
+    data_i2m = np.int16(index[Cykle[0], num_max_value[1]])
+    data_i3m = np.int16(index[Cykle[0], num_max_value[0]])
+ # получение номеров строк исходного 3д массива для выделения номера элемента
+    data_j1m = np.int16(num_max_value[2])
+    data_j2m = np.int16(num_max_value[1])
+    data_j3m = np.int16(num_max_value[0])
+  # получение номеров рядов исходного 3д массива для выделения номера шага
+    data_i1min = np.int16(index2[num_min_value[2], num_max_value[2]])
+    data_i2min = np.int16(index2[num_min_value[1], num_max_value[1]])
+    data_i3min = np.int16(index2[num_min_value[0], num_max_value[0]])
+   # получение номеров строк исходного 3д массива для выделения номера элемента
+    data_j1min = np.int16(num_max_value[2])
+    data_j2min = np.int16(num_max_value[1])
+    data_j3min = np.int16(num_max_value[0])
+    out = [data_i1m, data_i2m, data_i3m, data_j1m, data_j2m, data_j3m,
+           data_i1min, data_i2min, data_i3min, data_j1min, data_j2min, data_j3min]  
+    return out
+
+############################################################################
+########################################################################################################################################################
+########################################################################################################################################################
+########################################################################################################################################################
+############################################################################
+
+
+#
+i = 0
+# инициализация массива индексов элементов по циклам
+N_it_out = np.empty((flight_cycle_number, 12), 'int16') #12 число выходных параметров функции
+for i in range(flight_cycle_number):
+    N_it_out[i, :] = ramax(index_elemet, index_elemet2, \
+                           max_stress, min_stress, N_it[i])
+
+
+##########################################
+##########################################
+# Расчёт значений по циклам
+##########################################
+##########################################
+#Добавление столюцов напряжений со знаком
+znak=abs(data[:,:,7])-abs(data[:,:,8])
+
+i=0
+j=0
+for i in range (k):
+    for j in range (elements_number):
+        if znak[i,j]>= 0:
+            znak[i,j]= 1
+        else:
+            znak[i,j] = -1
+
+#номера точек максимумов
+i = 0
+j = 0
+max_point_сycle = np.empty((flight_cycle_number, 3))  # инициализация напряжений
+for j in range(flight_cycle_number):
+    for i in range(3):
+        max_point_сycle[j, i] = data[N_it_out[j, i], N_it_out[j, i+3], 0]
+        
+#номера точек минимумов
+i = 0
+j = 0
+min_point_сycle = np.empty((flight_cycle_number, 3))  # инициализация напряжений
+for j in range(flight_cycle_number):
+    for i in range(3):
+        min_point_сycle[j, i] = data[N_it_out[j, i+6], N_it_out[j, i+9], 0]
+
+# номера рассматриваеммых элементов
+i = 0
+j = 0
+max_number_сycle = np.empty((flight_cycle_number, 3))  # инициализация напряжений
+for j in range(flight_cycle_number):
+    for i in range(3):
+        max_number_сycle[j, i] = data[N_it_out[j, i], N_it_out[j, i+3], 1]
+
+# максимальные напряжений по всем циклам
+i = 0
+j = 0
+max_stress_сycle = np.empty((flight_cycle_number, 3))  # инициализация напряжений
+for j in range(flight_cycle_number):
+    for i in range(3):             
+        max_stress_сycle[j, i] = data[N_it_out[j, i], N_it_out[j, i+3], 36]
+
+# минимальные напряжений по всем циклам
+i = 0
+j = 0
+# инициализация массива минимальных напряжений
+min_stress_сycle = np.empty((flight_cycle_number, 36))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        if j == 20:
+            min_stress_сycle[j, i] = 0
+        else:
+            min_stress_сycle[j, i] = data[N_it_out[j, i+6], N_it_out[j, i+9], 36]
+
+# упругие деформации по всем циклам
+i = 0
+j = 0
+# инициализация массива упругих деформаций
+elastic_strain_сycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        elastic_strain_сycle[j, i] = data[N_it_out[j, i], N_it_out[j, i+3], 6]
+
+# пластические деформации по всем циклам
+i = 0
+j = 0
+# инициализация массива пластических деформаций
+plastic_strain_сycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        plastic_strain_сycle[j, i] = data[N_it_out[j, i], N_it_out[j, i+3], 16]
+
+# эквивалениные деформации по всем циклам
+i = 0
+j = 0
+# инициализация массива эквивалениных деформаций
+eqv_strain_сycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        eqv_strain_сycle[j, i] = data[N_it_out[j, i], N_it_out[j, i+3], 26]
+        
+# минимальные деформации по всем циклам
+i = 0
+j = 0
+# инициализация массива минимальных деформаций
+min_strain_сycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        min_strain_сycle[j, i] = data[N_it_out[j, i+6], N_it_out[j, i+9], 26]
+
+# температуры максимальные по всем циклам
+i = 0
+j = 0
+k = 0
+temp_сycle = np.empty((flight_cycle_number, 3))  # инициализация массива температур
+for j in range(flight_cycle_number):
+    for i in range(3):
+        temp_сycle[j, i] = max(max_temp[N_it[j][0], N_it_out[j, i+3]], max_temp2[N_it[j]
+                               [1], N_it_out[j, i+3]], max_temp2[N_it[j][2], N_it_out[j, i+3]])
+
+
+
+
+
+
+
+
+# Размах напряжений по всем циклам
+i = 0
+j = 0
+# инициализация массива размаха напряжений
+delt_stress_cycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        if j == 20:
+            delt_stress_cycle[j, i]=data[N_it_out[j, i], N_it_out[j,i+3], 36]/2
+        else :
+            delt_stress_cycle[j, i] = abs((data[N_it_out[j, i], N_it_out[j,i+3], 36]*znak[N_it_out[j, i], N_it_out[j,i+3]]-
+                                       data[N_it_out[j, i+6], N_it_out[j, i+9], 36]*znak[N_it_out[j, i+6], N_it_out[j, i+9]])/2+data[N_it_out[j, i+6], N_it_out[j, i+9], 36]*znak[N_it_out[j, i+6], N_it_out[j, i+9]])
+                                                
+#############################################################       
+#корректный расчёт размаха деформаций с учётом знака пластики
+##############################################################
+epsilon = np.empty((points_number,elements_number))
+i=0
+j=0
+for i in range(points_number):
+    for j in range (elements_number):
+        if (abs(data[i,j,3])-abs(data[i,j,5]))<0 and (abs(data[i,j,13])-abs(data[i,j,15]))<0:
+            epsilon[i,j]=-(abs(data[i,j,6])+abs(data[i,j,16]))
+        elif (abs(data[i,j,3])-abs(data[i,j,5]))<0 and (abs(data[i,j,13])-abs(data[i,j,15]))>0:
+            epsilon[i,j]=-abs(data[i,j,6])+abs(data[i,j,16])
+        elif (abs(data[i,j,3])-abs(data[i,j,5]))>0 and abs((data[i,j,13])-abs(data[i,j,15]))>0:
+            epsilon[i,j]=abs(data[i,j,6])+abs(data[i,j,16])
+        else:
+            epsilon[i,j]=abs(data[i,j,6])-abs(data[i,j,16])            
+# Размах деформаций по всем циклам
+i = 0
+j = 0
+# инициализация массива размаха деформаций
+delt_strain_cycle = np.empty((flight_cycle_number, 3))
+#nnn = np.empty(3)  # инициализация массива размаха напряжений
+for j in range(flight_cycle_number):
+    for i in range(3):
+        if j == 20:
+           delt_strain_cycle[j, i] =  data[N_it_out[j, i], N_it_out[j, i+3], 26]
+        else:
+            delt_strain_cycle[j, i] = abs(epsilon[N_it_out[j, i], N_it_out[j, i+3]]-epsilon[N_it_out[j, i+6], N_it_out[j, i+9]])
+        
+                                
+ ########################################################################                                                                                
+# Модуль Юнга по всем циклам
+i = 0
+j = 0
+Young_cycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        # расчёт значений интерполяционных 0 - линейнай, 1 - сплайн интерполяция
+        Young_cycle[j, i] = mat.Ep741.Ein(temp_сycle[j, i], 0)
+
+# Предел прочности по всем циклам
+i = 0
+j = 0
+Sigma_cycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        # расчёт значений интерполяционных 0 - линейнай, 1
+        Sigma_cycle[j, i] = mat.Ep741.sigmain(temp_сycle[j, i], 0)
+
+# Psi по всем циклам
+i = 0
+j = 0
+Psi_cycle = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        # расчёт значений интерполяционных 0 - линейна
+        Psi_cycle[j, i] = mat.Ep741.psiin(temp_сycle[j, i], 0)
+
+# Расчёт повреждаемости по всем циклам
+i = 0
+j = 0
+Damage_cycle = np.empty((flight_cycle_number, 3))  # инициализация массива размаха напряжений
+A1 = np.empty((flight_cycle_number, 3))
+A = np.empty((flight_cycle_number, 3))
+B = np.empty((flight_cycle_number, 3))
+for j in range(flight_cycle_number):
+    for i in range(3):
+        A1[j, i] = 1/(1-Psi_cycle[j, i]/100)
+        A[j, i] = np.log(A1[j, i])**0.6
+        B[j, i] = (3.5*(Sigma_cycle[j, i]-delt_stress_cycle[j, i])) / \
+            (Young_cycle[j, i]*1000)
+
+        def Menson(x):
+            return(A[j, i]*x**(-0.6)+B[j, i]*x**(-0.12)-delt_strain_cycle[j, i])
+        Damage_cycle[j, i] = fsolve(Menson, 0.001)
+
+############################################################
+# Работа с Excel
+############################################################
+
+
+# Открываем заготовку
+wb = openpyxl.load_workbook('D:\\python_scripts\\ShablonStPak.xlsx')
+ws = wb.active
+# получаем лист, с которым будем работать
+sheet = wb['Table1']
+
+# Заполняем номер максимального шага
+i = 0
+j = 0
+z = 2
+for i in range(flight_cycle_number):
+   ws.cell(row=z, column=4).value = max_point_сycle[i, 1]
+   z = z+index_out
+
+
+
+# Заполняем номер минимального шага
+i = 0
+j = 0
+z = 2
+for i in range(flight_cycle_number):
+    if i ==20:
+       ws.cell(row=z, column=5).value = 0
+    else:
+        ws.cell(row=z, column=5).value = min_point_сycle[i, 1]
+    z = z+index_out
+
+# Заполняем номер элемента
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=6).value = max_number_сycle[k, j]
+    k = k+1
+
+# Заполняем максимальные напряжения
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=7).value = max_stress_сycle[k, j]
+    k = k+1
+
+
+# Заполняем минимальные напряжения
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=8).value = min_stress_сycle[k, j]
+    k = k+1
+
+# Заполняем упругие деформации
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=9).value = elastic_strain_сycle[k, j]
+    k = k+1
+
+# Заполняем пластические деформации
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=10).value = plastic_strain_сycle[k, j]
+    k = k+1
+
+# Заполняем эквивалентные деформации
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=11).value = eqv_strain_сycle[k, j]
+    k = k+1
+
+# Заполняем минимальные деформации
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=12).value = min_strain_сycle[k, j]
+    k = k+1
+
+
+
+# Заполняем максимальные температуры
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=13).value = temp_сycle[k, j]
+    k = k+1
+
+# Заполняем размах напряжений
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=14).value = delt_stress_cycle[k, j]
+    k = k+1
+
+# Заполняем размах деформаций
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=15).value = delt_strain_cycle[k, j]
+    k = k+1
+
+# Заполняем модуль юнга
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=16).value = Young_cycle[k, j]
+    k = k+1
+
+# Заполняем предел прочности
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=17).value = Sigma_cycle[k, j]
+    k = k+1
+
+# Заполняем пси
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=18).value = Psi_cycle[k, j]
+    k = k+1
+
+# Заполняем повреждаемость
+i = 0
+j = 0
+z = 0
+k = 0
+for i in range(flight_cycle_number):
+    for j in range(index_out):
+        z = z+1
+        ws.cell(row=z+1, column=19).value = Damage_cycle[k, j]
+    k = k+1
+
+wb.save('D:\\TVD_data\\l1_741.xlsx')  # сохраняем файл

@@ -1,0 +1,113 @@
+# подключение библиотеки numpy
+import numpy as np
+
+#подключение библиотек работы с графиками
+import plotly.graph_objs as go
+import plotly.express as px
+from plotly.offline import plot
+from plotly.subplots import make_subplots
+
+#номер концентраторв
+Conc_number = 0
+
+# общее число элементоа
+elements_number = 10
+elements_number = int(elements_number)
+points_number = 92
+
+# импорт рассчётных текстовых данных из файлов
+pred_import1 = np.loadtxt('C:\\Solves\\TVD1\\TVD2022\\obr\\d1_1_741_10.txt')
+pred_import2 = np.loadtxt('C:\\Solves\\TVD1\\TVD2022\\obr\\d1_2_741_10.txt')
+pred_import3 = np.loadtxt('C:\\Solves\\TVD1\\TVD2022\\obr\\d1_3_741_10.txt')
+# объединение 2 файлов в 1
+import_file = np.concatenate((pred_import1,pred_import2,pred_import3), axis = 1)
+
+# преобразвание в 3д массив 1 файла
+data = np.reshape((import_file), (points_number,elements_number,43), order='F')
+
+data2=data.copy()
+# число шагов в трёхменом массиве
+k = data.shape[0]
+# число элементов в трёхменом массиве
+l = data.shape[1]
+# число расчётных параметров 
+m = data.shape[2]
+
+for i in range(k):
+    for j in range (l):
+        if abs(data2[i,j,33])-abs(data2[i,j,35])<0:
+           data2[i,j,36]=-data2[i,j,36] 
+       
+        if (abs(data2[i,j,3])-abs(data2[i,j,5]))<0 and (abs(data2[i,j,13])-abs(data2[i,j,15]))<0:
+            data2[i,j,26]=-(abs(data2[i,j,6])+abs(data2[i,j,16]))
+        elif (abs(data2[i,j,3])-abs(data2[i,j,5]))<0 and (abs(data2[i,j,13])-abs(data2[i,j,15]))>0:
+           data2[i,j,26]=-abs(data2[i,j,6])+abs(data2[i,j,16])
+        elif (abs(data2[i,j,3])-abs(data2[i,j,5]))>0 and abs((data2[i,j,13])-abs(data2[i,j,15]))>0:
+           data2[i,j,26]=abs(data2[i,j,6])+abs(data2[i,j,16])
+        else:
+           data2[i,j,26]=abs(data2[i,j,6])-abs(data2[i,j,16])
+        
+        
+
+        
+        
+ 
+############################################################
+# Массивы вывода режимов
+############################################################
+'''
+Mg0_0= np.array([0, 1, 4, 5, 8,	9,	12,	13,	16,	17,	75,	76,	88,	89, 90]) # 1 Малый газ H=0 M=0
+Mg1000_04 = np.array([66, 67, 70, 71, 74, 83, 84])                        #2
+Mg1500_03 = np.array([34, 35,	38,	39,	44,	45,	52,	53,	56,	57,	62,	63]) #3
+Kr0_0 = np.array([2, 3, 6, 7, 10, 11]) #4
+Kr0_04 = np.array([77, 78, 87]) #5
+Kr700_04 = np.array([85, 86]) #6
+Kr1000_04 = np.array([68, 69, 72, 73]) #7
+Kr1500_03 = np.array([22,23,	26,	27,	30,	31,	40,	41,	46,	47,	58,	59,	64,	65]) #8
+U500_03 = np.array([20,81,82]) #9
+U1500_03 = np.array([21,42,43,48,49]) #10
+M0_0= np.array([14,15,18]) #11
+M500_03= np.array([19,79,80]) #12
+M1500_03= np.array([24,	25,	28,	29,	32,	31,	36,	37,	50,	51,	54,	53,	60,	61]) #13
+'''
+MG = np.array([1,2,5,6,9,10,13,14,17,18,35,36,39,40,45,53,54,57,58,63,64,67,68,71,72,75,76,77,84,85,89,90])
+Kr = np.array([3,4,7,8,11,12,23,24,27,28,31,32,41,42,47,48,59,60,65,66,69,70,73,74,78,79,86,87,88])
+U = np.array([21,22,43,44,49,50,82,83])
+Max = np.array([15,16,19,20,25,26,29,30,33,34,37,38,51,52,55,56,61,62,80,81])
+Ostan = np.array([91])
+#Start = np.array([0])
+############################################################
+# Вывод графика
+############################################################
+'''
+trace1 = go.Scatter(x=data2[Mg0_0,Conc_number,6], y=data2[Mg0_0,Conc_number,3], mode = 'markers', name = 'мг(H=0 M=0',marker_color='rgba(0, 0, 255, .8)' )
+trace2 = go.Scatter(x=data2[Mg1000_04,Conc_number,6], y=data2[Mg1000_04,Conc_number,3],mode = 'markers', name = 'мг(Н=1000 М=0.4',marker_color='rgba(0, 102, 153, .8)')
+trace3 = go.Scatter(x=data2[Mg1500_03,Conc_number,6], y=data2[Mg1500_03,Conc_number,3],mode = 'markers', name = 'мг(Н=1500 М=0.3)',marker_color='rgba(51, 153, 504, .9)')
+trace4 = go.Scatter(x=data2[Kr0_0,Conc_number,6], y=data2[Kr0_0,Conc_number,3],mode = 'markers', name = 'кр(Н=0 М=0',marker_color='rgba(051, 255, 051, .8)')
+trace5 = go.Scatter(x=data2[Kr0_04,Conc_number,6], y=data2[Kr0_04,Conc_number,3],mode = 'markers', name = 'кр(Н=0 М=0.4)',marker_color='rgba(051, 102, 0, .8)')
+trace6 = go.Scatter(x=data2[Kr700_04,Conc_number,6], y=data2[Kr700_04,Conc_number,3],mode = 'markers', name = 'кр(Н=700 М=0.4)',marker_color='rgba(204, 153, 102, 1)')
+trace7 = go.Scatter(x=data2[Kr1000_04,Conc_number,6], y=data2[Kr1000_04,Conc_number,3],mode = 'markers', name = 'кр(Н=1000 М=0.4)',marker_color='rgba(204, 204, 0, .5)')
+trace8 = go.Scatter(x=data2[Kr1500_03,Conc_number,6], y=data2[Kr1500_03,Conc_number,3],mode = 'markers', name = 'кр(Н=1500 М=0.3)',marker_color='rgba(204, 102, 0, 1)')
+trace9 = go.Scatter(x=data2[U500_03,Conc_number,6], y=data2[U500_03,Conc_number,3],mode = 'markers', name = 'у(Н=500 М=0.3)',marker_color='rgba(255, 102, 051, .8)')
+trace10 = go.Scatter(x=data2[U1500_03,Conc_number,6], y=data2[U1500_03,Conc_number,3],mode = 'markers', name = 'у(Н=1500 М=0.3)',marker_color='rgba(255, 051, 051, .8)')
+trace11 = go.Scatter(x=data2[M0_0,Conc_number,6], y=data2[M0_0,Conc_number,3],mode = 'markers', name = 'м(Н=0 М=0)',marker_color='rgba(102, 0, 051, .8)')
+trace12 = go.Scatter(x=data2[M500_03,Conc_number,6], y=data2[M500_03,Conc_number,3],mode = 'markers', name = 'м(Н=500 М=0.3)',marker_color='rgba(255, 0, 0, .8)')
+trace13 = go.Scatter(x=data2[M1500_03,Conc_number,6], y=data2[M1500_03,Conc_number,3],mode = 'markers', name = 'м(Н=1500 М=0.3)',marker_color='rgba(204, 0, 0, 1)')
+'''
+trace1 = go.Scatter(x=data2[MG,Conc_number,26], y=data2[MG,Conc_number,36], mode = 'markers', name = 'малый газ',marker_color='rgba(0, 0, 255, .8)' )
+trace2 = go.Scatter(x=data2[Kr,Conc_number,26], y=data2[Kr,Conc_number,36],mode = 'markers', name = 'крейсер',marker_color='rgba(0, 139, 00, .8)')
+trace3 = go.Scatter(x=data2[U,Conc_number,26], y=data2[U,Conc_number,36],mode = 'markers', name = 'учебный',marker_color='rgba(139, 10, 80, .8)')
+trace4 = go.Scatter(x=data2[Max,Conc_number,26], y=data2[Max,Conc_number,36],mode = 'markers', name = 'максимал',marker_color='rgba(255, 0, 00, 1)')
+trace5 = go.Scatter(x=data2[Ostan,Conc_number,26], y=data2[Ostan,Conc_number,36],mode = 'markers', name = 'Останов',marker_color='rgba(0, 0, 0, .8)')
+#trace6 = go.Scatter(x=data2[Start,Conc_number,26], y=data2[Start,Conc_number,36],mode = 'markers')
+trace7 = go.Scatter(x=data2[1:,Conc_number,26], y=data2[1:,Conc_number,36],name = '', line=dict(color='black', width=0.3, dash='dash'))
+tt=[trace1,trace2,trace3,trace4,trace5,trace7]
+fig=go.Figure(tt)
+#tt=[trace0]
+fig.update_xaxes(zeroline=True, zerolinewidth = 2, zerolinecolor = 'black')
+fig.update_yaxes(zeroline=True, zerolinewidth = 2, zerolinecolor = 'black')
+fig.update_yaxes(tick0=50, dtick=100,gridcolor='rgba(105, 105, 105, 0.3)')
+fig.update_layout(xaxis_title='Деформации', yaxis_title='Напряжения МПа')
+fig.update_layout(legend = dict(orientation ="h"))
+fig.update_layout(template = "plotly_white")
+plot(fig)
